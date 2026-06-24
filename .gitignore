@@ -179,3 +179,16 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# ==========================
+# PROJETO ISIC MELANOMA
+# ==========================
+
+data/ISIC_2024_Permissive_Training_Input/
+
+checkpoints/
+*.pth
+
+outputs/
+
+.vscode/
