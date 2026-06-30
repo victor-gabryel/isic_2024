@@ -10,7 +10,10 @@ checkpoints/
 # Resultados gerados
 outputs/
 
-# Cache
+# Logs
+logs/
+
+# Cache Python
 __pycache__/
 *.pyc
 
