@@ -1,390 +1,206 @@
-# src/train.py
-
-import os
-import random
-import numpy as np
-import matplotlib.pyplot as plt
-
 import torch
 import torch.nn as nn
 
-from tqdm import tqdm
-from torch.utils.data import DataLoader, WeightedRandomSampler
+from torch.optim import AdamW
+
 from sklearn.metrics import roc_auc_score
 
-from config import *
-from dataset import *
-from model import create_model
+from tqdm import tqdm
 
+from src.config import *
 
-def set_seed(seed):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
+from src.dataset import load_dataset, create_loaders
 
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed(seed)
-        torch.cuda.manual_seed_all(seed)
+from src.model import create_model
 
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = True
+# ==========================================
+# TREINAMENTO
+# ==========================================
 
 
-def main():
+def train_epoch(model, loader, optimizer, criterion, device):
 
-    set_seed(SEED)
+    model.train()
 
-    os.makedirs("outputs", exist_ok=True)
-    os.makedirs("checkpoints", exist_ok=True)
+    total_loss = 0
 
-    # Dataset
-    df = load_dataset()
+    predictions = []
 
-    train_df, val_df, test_df = split_dataset(df)
+    targets = []
 
-    train_df = balance_train_set(train_df)
+    for images, labels in tqdm(loader):
 
-    train_dataset = SkinDataset(
-        train_df,
-        train_transform
-    )
+        images = images.to(device)
 
-    val_dataset = SkinDataset(
-        val_df,
-        val_transform
-    )
+        labels = labels.to(device)
 
+        optimizer.zero_grad()
 
-    # Sampler balanceado
-    classes = train_df["malignant"].astype(int).values
+        outputs = model(images)
 
-    class_counts = np.bincount(classes)
+        loss = criterion(outputs, labels)
 
-    weights = 1 / class_counts
+        loss.backward()
 
-    sample_weights = [
-        weights[c] for c in classes
-    ]
+        optimizer.step()
 
-    sampler = WeightedRandomSampler(
-        sample_weights,
-        len(sample_weights),
-        replacement=True
-    )
+        total_loss += loss.item()
 
+        probs = torch.sigmoid(outputs)
 
-    # DataLoader
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=BATCH_SIZE,
-        sampler=sampler
-    )
+        predictions.extend(probs.detach().cpu().numpy())
 
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=BATCH_SIZE,
-        shuffle=False
-    )
+        targets.extend(labels.cpu().numpy())
 
-    print("DataLoaders prontos")
+    auc = roc_auc_score(targets, predictions)
 
+    return (total_loss / len(loader), auc)
 
-    # Modelo
-    model = create_model().to(DEVICE)
 
+# ==========================================
+# VALIDAÇÃO
+# ==========================================
 
-    # Loss
-    criterion = nn.BCEWithLogitsLoss(
-        pos_weight=torch.tensor(
-            [POS_WEIGHT]
-        ).to(DEVICE)
-    )
 
+def validate(model, loader, criterion, device):
 
-    # Otimizador
-    optimizer = torch.optim.AdamW(
-        model.parameters(),
-        lr=LR,
-        weight_decay=WEIGHT_DECAY
-    )
+    model.eval()
 
+    total_loss = 0
 
-    # Scheduler
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer,
-        mode="max",
-        patience=2,
-        factor=0.5
-    )
+    predictions = []
 
+    targets = []
 
-    # AMP
-    scaler = torch.amp.GradScaler(
-        enabled=torch.cuda.is_available()
-    )
+    with torch.no_grad():
 
+        for images, labels in tqdm(loader):
 
-    # Checkpoint
-    start_epoch = 0
-    best_auc = 0
-    stop_count = 0
+            images = images.to(device)
 
-    train_losses = []
-    val_aucs = []
+            labels = labels.to(device)
 
+            outputs = model(images)
 
-    if os.path.exists(CHECKPOINT_PATH):
-
-        try:
-
-            checkpoint = torch.load(
-                CHECKPOINT_PATH,
-                map_location=DEVICE,
-                weights_only=False
-            )
-
-            model.load_state_dict(
-                checkpoint["model"]
-            )
-
-            optimizer.load_state_dict(
-                checkpoint["optimizer"]
-            )
-
-            scheduler.load_state_dict(
-                checkpoint["scheduler"]
-            )
-
-            start_epoch = checkpoint["epoch"] + 1
-            best_auc = checkpoint["best_auc"]
-            train_losses = checkpoint["loss"]
-            val_aucs = checkpoint["auc"]
-
-            print(
-                f"Continuando do epoch {start_epoch}"
-            )
-
-        except:
-
-            print(
-                "Checkpoint inválido, iniciando novo treino"
-            )
-
-    else:
-
-        print(
-            "Nenhum checkpoint encontrado"
-        )
-
-
-    # Treinamento
-    for epoch in range(start_epoch, EPOCHS):
-
-        print(
-            f"\nEpoch {epoch+1}/{EPOCHS}"
-        )
-
-        model.train()
-
-        total_loss = 0
-
-
-        loop = tqdm(
-            train_loader,
-            desc="Treinando"
-        )
-
-
-        for images, labels in loop:
-
-            images = images.to(DEVICE)
-
-            labels = labels.to(
-                DEVICE
-            ).float().view(-1,1)
-
-
-            optimizer.zero_grad()
-
-
-            with torch.amp.autocast(
-                device_type="cuda",
-                enabled=torch.cuda.is_available()
-            ):
-
-                outputs = model(images)
-
-                loss = criterion(
-                    outputs,
-                    labels
-                )
-
-
-            scaler.scale(loss).backward()
-
-            scaler.unscale_(optimizer)
-
-
-            torch.nn.utils.clip_grad_norm_(
-                model.parameters(),
-                1.0
-            )
-
-
-            scaler.step(
-                optimizer
-            )
-
-            scaler.update()
-
+            loss = criterion(outputs, labels)
 
             total_loss += loss.item()
 
+            probs = torch.sigmoid(outputs)
 
-            loop.set_postfix(
-                loss=loss.item()
-            )
+            predictions.extend(probs.cpu().numpy())
+
+            targets.extend(labels.cpu().numpy())
+
+    auc = roc_auc_score(targets, predictions)
+
+    return (total_loss / len(loader), auc)
 
 
-        epoch_loss = total_loss / len(train_loader)
+# ==========================================
+# MAIN
+# ==========================================
 
-        train_losses.append(
-            epoch_loss
+
+def main():
+    
+    print("==============================")
+    print("Configuração ISIC 2024")
+    print("==============================")
+    print(
+        "Dispositivo:",
+        DEVICE
+    )
+    print(
+        "Modelo:",
+        MODEL_NAME
+    )
+    print(
+        "Imagens:",
+        IMAGE_DIR
+    )
+    print("==============================")
+    
+
+    print("Carregando dataset...")
+
+    df = load_dataset()
+
+    train_loader, val_loader = create_loaders(df)
+
+    print("Criando modelo...")
+
+    model = create_model(DEVICE)
+
+    pos_weight = torch.tensor(
+        [
+            len(df[df["malignant"] == 0]) /
+            len(df[df["malignant"] == 1])
+        ]
+    ).to(DEVICE)
+
+    criterion = nn.BCEWithLogitsLoss(
+        pos_weight=pos_weight
+    )
+
+    optimizer = AdamW(
+        model.parameters(),
+        lr=LEARNING_RATE
+    )
+
+
+    best_auc = 0
+
+    patience = 3
+
+    counter = 0
+
+
+    for epoch in range(EPOCHS):
+
+        print()
+
+        print(f"Época {epoch+1}/{EPOCHS}")
+
+        train_loss, train_auc = train_epoch(
+            model, train_loader, optimizer, criterion, DEVICE
         )
 
+        val_loss, val_auc = validate(model, val_loader, criterion, DEVICE)
 
-        # Validação
-        model.eval()
+        print(f"""
+                    Treino:
+                    Loss: {train_loss:.4f}
+                    AUC: {train_auc:.4f}
 
-        preds = []
-        true = []
+                    Validação:
+                    Loss: {val_loss:.4f}
+                    AUC: {val_auc:.4f}
+                    """)
 
+        if val_auc > best_auc:
 
-        with torch.no_grad():
+            best_auc = val_auc
 
-            for images, labels in val_loader:
+            counter = 0
 
-                images = images.to(DEVICE)
+            torch.save(model.state_dict(), BEST_MODEL)
 
-                outputs = model(images)
-
-                probs = torch.sigmoid(
-                    outputs
-                ).view(-1)
-
-
-                preds.extend(
-                    probs.cpu().numpy()
-                )
-
-                true.extend(
-                    labels.numpy()
-                )
-
-
-        auc = roc_auc_score(
-            true,
-            preds
-        )
-
-        val_aucs.append(
-            auc
-        )
-
-
-        scheduler.step(
-            auc
-        )
-
-
-        print(
-            f"Loss: {epoch_loss:.4f} | AUC: {auc:.4f}"
-        )
-
-
-        # Melhor modelo
-        if auc > best_auc:
-
-            best_auc = auc
-
-            stop_count = 0
-
-
-            torch.save(
-                model.state_dict(),
-                BEST_MODEL_PATH
-            )
-
-            print(
-                "Melhor modelo salvo"
-            )
-
+            print("Modelo salvo!")
 
         else:
 
-            stop_count += 1
+            counter += 1
 
+            print(f"Sem melhora: {counter}/{patience}")
 
+            if counter >= patience:
 
-        # Salvar checkpoint
-        torch.save(
-            {
-                "epoch": epoch,
-                "model": model.state_dict(),
-                "optimizer": optimizer.state_dict(),
-                "scheduler": scheduler.state_dict(),
-                "loss": train_losses,
-                "auc": val_aucs,
-                "best_auc": best_auc
-            },
-            CHECKPOINT_PATH
-        )
+                print("Early stopping!")
 
-
-        if stop_count >= PATIENCE:
-
-            print(
-                "Early stopping"
-            )
-
-            break
-
-
-
-    # Gráfico Loss
-    plt.plot(train_losses)
-
-    plt.title(
-        "Loss"
-    )
-
-    plt.savefig(
-        "outputs/loss_curve.png"
-    )
-
-    plt.close()
-
-
-
-    # Gráfico AUC
-    plt.plot(val_aucs)
-
-    plt.title(
-        "AUC"
-    )
-
-    plt.savefig(
-        "outputs/auc_curve.png"
-    )
-
-    plt.close()
-
-
-    print(
-        "Treinamento concluído"
-    )
-
+                break
 
 
 if __name__ == "__main__":
+
     main()

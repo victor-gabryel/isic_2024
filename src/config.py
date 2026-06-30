@@ -1,51 +1,103 @@
-from pathlib import Path
-import torch
 import os
+import torch
 
-# =====================================
-# CONFIGURAÇÕES GERAIS
-# =====================================
 
-SEED = 42
+# ==========================================
+# CAMINHOS
+# ==========================================
 
-DEVICE = torch.device(
-    "cuda" if torch.cuda.is_available()
-    else "cpu"
+BASE_DIR = os.path.dirname(
+    os.path.dirname(
+        os.path.abspath(__file__)
+    )
 )
 
-IMAGE_SIZE = 300
 
-BATCH_SIZE = 8
+DATA_DIR = os.path.join(
+    BASE_DIR,
+    "data"
+)
+
+
+IMAGE_DIR = os.path.join(
+    DATA_DIR,
+    "ISIC_reduzido",
+    "images"
+)
+
+
+TRAIN_CSV = os.path.join(
+    DATA_DIR,
+    "ISIC_reduzido",
+    "metadata.csv"
+)
+
+
+# ==========================================
+# MODELO
+# ==========================================
+
+MODEL_NAME = "efficientnet_b0"
+
+NUM_CLASSES = 1
+
+
+# ==========================================
+# IMAGEM
+# ==========================================
+
+IMAGE_SIZE = 224
+
+
+# ==========================================
+# TREINO
+# ==========================================
+
+BATCH_SIZE = 16
 
 EPOCHS = 20
 
-LR = 3e-5
+LEARNING_RATE = 0.0001
 
-WEIGHT_DECAY = 1e-2
+SEED = 42
 
-POS_WEIGHT = 10.0
 
-PATIENCE = 5
+# ==========================================
+# HARDWARE
+# ==========================================
 
-# =====================================
-# CAMINHOS
-# =====================================
+DEVICE = (
+    "cuda"
+    if torch.cuda.is_available()
+    else "cpu"
+)
 
-BASE_DIR = Path(__file__).resolve().parent.parent
 
-DATASET_CSV = "data/ISIC_2024_Permissive_Training_GroundTruth.csv"
+# Windows + CPU
+NUM_WORKERS = 0
 
-IMAGES_PATH = "data/ISIC_2024_Permissive_Training_Input"
 
-CHECKPOINT_PATH = BASE_DIR / "checkpoints" / "checkpoint.pth"
+# ==========================================
+# CHECKPOINT
+# ==========================================
 
-BEST_MODEL_PATH = BASE_DIR / "checkpoints" / "best_model.pth"
+CHECKPOINT_DIR = os.path.join(
+    BASE_DIR,
+    "checkpoints"
+)
 
-OUTPUTS_DIR = BASE_DIR / "outputs"
 
-# =====================================
-# CRIA PASTAS AUTOMATICAMENTE
-# =====================================
+BEST_MODEL = os.path.join(
+    CHECKPOINT_DIR,
+    "best_model.pth"
+)
 
-os.makedirs(BASE_DIR / "checkpoints", exist_ok=True)
-os.makedirs(BASE_DIR / "outputs", exist_ok=True)
+
+# ==========================================
+# SAÍDAS
+# ==========================================
+
+OUTPUT_DIR = os.path.join(
+    BASE_DIR,
+    "outputs"
+)
