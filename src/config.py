@@ -1,70 +1,5 @@
-import os
 import torch
 
-
-# ==========================================
-# CAMINHOS
-# ==========================================
-
-BASE_DIR = os.path.dirname(
-    os.path.dirname(
-        os.path.abspath(__file__)
-    )
-)
-
-
-DATA_DIR = os.path.join(
-    BASE_DIR,
-    "data"
-)
-
-
-IMAGE_DIR = os.path.join(
-    DATA_DIR,
-    "ISIC_reduzido",
-    "images"
-)
-
-
-TRAIN_CSV = os.path.join(
-    DATA_DIR,
-    "ISIC_reduzido",
-    "metadata.csv"
-)
-
-
-# ==========================================
-# MODELO
-# ==========================================
-
-MODEL_NAME = "efficientnet_b0"
-
-NUM_CLASSES = 1
-
-
-# ==========================================
-# IMAGEM
-# ==========================================
-
-IMAGE_SIZE = 224
-
-
-# ==========================================
-# TREINO
-# ==========================================
-
-BATCH_SIZE = 16
-
-EPOCHS = 20
-
-LEARNING_RATE = 0.0001
-
-SEED = 42
-
-
-# ==========================================
-# HARDWARE
-# ==========================================
 
 DEVICE = (
     "cuda"
@@ -73,31 +8,19 @@ DEVICE = (
 )
 
 
-# Windows + CPU
-NUM_WORKERS = 0
+MODEL_NAME = "efficientnet_b0"
 
 
-# ==========================================
-# CHECKPOINT
-# ==========================================
-
-CHECKPOINT_DIR = os.path.join(
-    BASE_DIR,
-    "checkpoints"
-)
+IMAGE_SIZE = 224
 
 
-BEST_MODEL = os.path.join(
-    CHECKPOINT_DIR,
-    "best_model.pth"
-)
+BATCH_SIZE = 32
 
 
-# ==========================================
-# SAÍDAS
-# ==========================================
+EPOCHS = 20
 
-OUTPUT_DIR = os.path.join(
-    BASE_DIR,
-    "outputs"
-)
+
+LEARNING_RATE = 1e-4
+
+
+BEST_MODEL = "checkpoints/best_model.pth"

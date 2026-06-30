@@ -1,15 +1,7 @@
-import torch
 import torch.nn as nn
-
 import timm
 
-from src.config import MODEL_NAME
 
-
-
-# ==========================================
-# MODELO
-# ==========================================
 
 class SkinCancerModel(nn.Module):
 
@@ -19,12 +11,9 @@ class SkinCancerModel(nn.Module):
         super().__init__()
 
 
-
-        # EfficientNet pré-treinada
-
         self.model = timm.create_model(
 
-            MODEL_NAME,
+            "efficientnet_b0",
 
             pretrained=True,
 
@@ -33,18 +22,13 @@ class SkinCancerModel(nn.Module):
         )
 
 
-
-        # Descobrir tamanho da saída
-
         features = self.model.num_features
 
 
 
-        # Classificador final
-
         self.classifier = nn.Sequential(
 
-            nn.Dropout(0.3),
+            nn.Dropout(0.4),
 
             nn.Linear(
 
@@ -58,11 +42,10 @@ class SkinCancerModel(nn.Module):
 
 
 
-    def forward(self, x):
+    def forward(self,x):
 
 
         x = self.model(x)
-
 
         x = self.classifier(x)
 
@@ -73,17 +56,10 @@ class SkinCancerModel(nn.Module):
 
 
 
-# ==========================================
-# CRIAR MODELO
-# ==========================================
-
 def create_model(device):
 
 
     model = SkinCancerModel()
 
 
-    model = model.to(device)
-
-
-    return model
+    return model.to(device)

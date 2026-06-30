@@ -5,5 +5,10 @@ pandas
 numpy
 scikit-learn
 matplotlib
+seaborn
+opencv-python
 pillow
 tqdm
+albumentations
+grad-cam
+streamlit
