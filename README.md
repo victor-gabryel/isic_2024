@@ -1,10 +1,12 @@
 # Classificação de Lesões Cutâneas utilizando Deep Learning
 
-## 1. Visão Geral
+# 1. Visão Geral
 
 Este projeto apresenta o desenvolvimento de um sistema de classificação automática de lesões cutâneas utilizando técnicas de Deep Learning aplicadas a imagens dermatológicas.
 
 O sistema utiliza **Transfer Learning** com a arquitetura **EfficientNet-B0**, implementada em **PyTorch**, para realizar a classificação binária entre lesões **benignas** e **malignas**. Além do treinamento e avaliação do modelo, o projeto disponibiliza uma interface web desenvolvida em **Streamlit**, permitindo realizar inferências em novas imagens e visualizar métricas e gráficos do treinamento.
+
+[![Abrir Aplicação](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://isic2024-6vvmjqgewe2qfioxuyccga.streamlit.app/)
 
 ---
 
@@ -65,7 +67,7 @@ isic_2024/
 │   └── best_model.pth
 │
 ├── outputs/
-│   ├── accuracy.png
+│   ├── metrics.png
 │   ├── confusion_matrix.png
 │   ├── dataset_original.png
 │   ├── dataset_reduzido.png
@@ -73,7 +75,7 @@ isic_2024/
 │   ├── history.json
 │   ├── loss.png
 │   ├── roc_curve.png
-│   ├── roc_evolution.png
+│   ├── roc_auc.png
 │   └── gradcam/
 │
 ├── data/
