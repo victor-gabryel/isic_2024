@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 
 from torch.optim import AdamW
-
 from sklearn.metrics import roc_auc_score
 
 from tqdm import tqdm
@@ -15,6 +14,12 @@ from src.config import *
 from src.dataset import load_dataset, create_loaders
 from src.model import create_model
 
+
+
+
+# ==========================================
+# CONFIGURAÇÕES
+# ==========================================
 
 
 os.makedirs(
@@ -30,6 +35,20 @@ os.makedirs(
 
 
 
+# Quantas épocas sem melhorar antes de parar
+EARLY_STOPPING_PATIENCE = 5
+
+
+
+
+
+
+
+# ==========================================
+# TREINO DE UMA ÉPOCA
+# ==========================================
+
+
 def train_epoch(
     model,
     loader,
@@ -38,23 +57,25 @@ def train_epoch(
     device
 ):
 
+
     model.train()
 
 
-    losses = []
+    losses=[]
 
-    preds = []
+    preds=[]
 
-    labels_all = []
+    labels_all=[]
 
 
 
     for images, labels in tqdm(loader):
 
 
-        images = images.to(device)
+        images=images.to(device)
 
-        labels = labels.float().to(device)
+
+        labels=labels.float().to(device)
 
 
 
@@ -62,50 +83,72 @@ def train_epoch(
 
 
 
-        output = model(images)
+        output=model(images)
 
 
 
-        loss = criterion(
+        loss=criterion(
+
             output,
+
             labels
+
         )
 
 
 
         loss.backward()
 
+
+
         optimizer.step()
 
 
 
         losses.append(
+
             loss.item()
+
         )
 
 
-        probs = torch.sigmoid(output)
+
+        prob=torch.sigmoid(output)
 
 
 
         preds.extend(
-            probs.detach()
+
+            prob.detach()
+
             .cpu()
+
             .numpy()
+
         )
+
 
 
         labels_all.extend(
+
             labels.cpu()
+
             .numpy()
+
         )
 
 
 
-    auc = roc_auc_score(
+
+
+    auc=roc_auc_score(
+
         labels_all,
+
         preds
+
     )
+
 
 
     return sum(losses)/len(losses), auc
@@ -114,12 +157,25 @@ def train_epoch(
 
 
 
+
+
+# ==========================================
+# VALIDAÇÃO
+# ==========================================
+
+
 def validate(
+
     model,
+
     loader,
+
     criterion,
+
     device
+
 ):
+
 
     model.eval()
 
@@ -129,6 +185,7 @@ def validate(
     preds=[]
 
     labels_all=[]
+
 
 
 
@@ -150,44 +207,69 @@ def validate(
 
 
             loss=criterion(
+
                 output,
+
                 labels
+
             )
+
 
 
             losses.append(
+
                 loss.item()
+
             )
 
 
 
-            probs=torch.sigmoid(output)
+            prob=torch.sigmoid(output)
 
 
 
             preds.extend(
-                probs.cpu()
+
+                prob.cpu()
+
                 .numpy()
+
             )
 
 
             labels_all.extend(
+
                 labels.cpu()
+
                 .numpy()
+
             )
 
 
 
+
+
     auc=roc_auc_score(
+
         labels_all,
+
         preds
+
     )
+
 
 
     return sum(losses)/len(losses), auc
 
 
 
+
+
+
+
+# ==========================================
+# MAIN
+# ==========================================
 
 
 def main():
@@ -202,48 +284,87 @@ def main():
 
 
 
-    df = load_dataset()
+
+
+    # carregar dataset
+
+    df=load_dataset()
 
 
 
-    train_loader, val_loader = create_loaders(
+    train_loader,val_loader=create_loaders(
+
         df
+
     )
 
 
+
+
+
+    # modelo EfficientNet-B0
 
     model=create_model(
+
         DEVICE
+
     )
 
 
 
-    malignant = len(
+
+
+    # peso da classe maligna
+
+    malignant=len(
+
         df[df.malignant==1]
+
     )
 
 
-    benign = len(
+    benign=len(
+
         df[df.malignant==0]
+
     )
+
+
+
 
 
     pos_weight=torch.tensor(
+
         benign/malignant
+
     ).to(DEVICE)
 
 
 
+
+
     print(
+
         "Pos weight:",
+
         pos_weight
+
     )
 
 
+
+
+
+
+    # função de perda
 
     criterion=nn.BCEWithLogitsLoss(
+
         pos_weight=pos_weight
+
     )
+
+
 
 
 
@@ -257,7 +378,16 @@ def main():
 
 
 
+
+
+
     best_auc=0
+
+
+    patience=0
+
+
+
 
 
     history={
@@ -276,16 +406,23 @@ def main():
 
 
 
+
+
     for epoch in range(EPOCHS):
 
 
+
         print(
+
             f"\nÉpoca {epoch+1}/{EPOCHS}"
+
         )
 
 
 
-        train_loss, train_auc=train_epoch(
+
+
+        train_loss,train_auc=train_epoch(
 
             model,
 
@@ -298,6 +435,8 @@ def main():
             DEVICE
 
         )
+
+
 
 
 
@@ -315,8 +454,12 @@ def main():
 
 
 
+
+
         print(
+
 f"""
+
 Treino
 
 Loss: {train_loss:.4f}
@@ -329,38 +472,58 @@ Validação
 Loss: {val_loss:.4f}
 
 AUC: {val_auc:.4f}
+
 """
+
         )
+
+
 
 
 
 
         history["epoch"].append(
+
             epoch+1
+
         )
 
 
         history["train_loss"].append(
+
             train_loss
+
         )
 
 
         history["val_loss"].append(
+
             val_loss
+
         )
 
 
         history["train_auc"].append(
+
             train_auc
+
         )
 
 
         history["val_auc"].append(
+
             val_auc
+
         )
 
 
 
+
+
+
+
+
+        # salvar melhor modelo
 
 
         if val_auc > best_auc:
@@ -369,18 +532,30 @@ AUC: {val_auc:.4f}
             best_auc=val_auc
 
 
+            patience=0
+
+
 
             torch.save(
 
                 {
 
-                "model":model.state_dict(),
+                "model":
 
-                "auc":best_auc,
+                model.state_dict(),
 
-                "epoch":epoch+1
+
+                "auc":
+
+                best_auc,
+
+
+                "epoch":
+
+                epoch+1
 
                 },
+
 
                 BEST_MODEL
 
@@ -389,15 +564,61 @@ AUC: {val_auc:.4f}
 
 
             print(
-                "Modelo salvo!"
+
+                "Melhor modelo salvo!"
+
             )
 
 
 
 
+        else:
+
+
+            patience+=1
+
+
+            print(
+
+                f"Sem melhora {patience}/{EARLY_STOPPING_PATIENCE}"
+
+            )
+
+
+
+
+
+
+        # parar se não melhorar
+
+
+        if patience >= EARLY_STOPPING_PATIENCE:
+
+
+            print(
+
+                "Early stopping ativado"
+
+            )
+
+
+            break
+
+
+
+
+
+
+
+    # salvar histórico
+
+
     with open(
+
         "outputs/history.json",
+
         "w"
+
     ) as f:
 
 
@@ -413,13 +634,20 @@ AUC: {val_auc:.4f}
 
 
 
+
+    print("===================")
+
+    print("Treino finalizado")
+
     print(
-        "Treino finalizado"
+
+        f"Melhor AUC: {best_auc:.4f}"
+
     )
 
+    print("===================")
 
 
 
 if __name__=="__main__":
-
     main()

@@ -4,335 +4,237 @@
 
 Este projeto apresenta o desenvolvimento de um sistema de classificação automática de lesões cutâneas utilizando técnicas de Deep Learning aplicadas a imagens dermatológicas.
 
-O objetivo é realizar a classificação binária entre lesões benignas e malignas utilizando uma rede neural convolucional com aprendizado por transferência (Transfer Learning), buscando auxiliar processos de triagem e análise automatizada de imagens médicas.
-
-O modelo foi desenvolvido utilizando PyTorch e disponibilizado por meio de uma aplicação interativa desenvolvida em Streamlit.
+O sistema utiliza **Transfer Learning** com a arquitetura **EfficientNet-B0**, implementada em **PyTorch**, para realizar a classificação binária entre lesões **benignas** e **malignas**. Além do treinamento e avaliação do modelo, o projeto disponibiliza uma interface web desenvolvida em **Streamlit**, permitindo realizar inferências em novas imagens e visualizar métricas e gráficos do treinamento.
 
 ---
 
 # 2. Tecnologias Utilizadas
 
-* Python
-* PyTorch
-* Torchvision
-* timm
-* EfficientNet-B0
-* OpenCV
-* Albumentations
-* Pandas
-* NumPy
-* Scikit-learn
-* Matplotlib
-* Streamlit
+- Python
+- PyTorch
+- Torchvision
+- timm
+- EfficientNet-B0
+- Albumentations
+- OpenCV
+- NumPy
+- Pandas
+- Scikit-learn
+- Matplotlib
+- Streamlit
 
 ---
 
 # 3. Dataset
 
-Foi utilizado o dataset:
+Dataset utilizado:
 
-**ISIC 2024 Permissive Training Input**
+**ISIC 2024 – Permissive Training Input**
 
-O dataset original apresenta forte desbalanceamento entre as classes:
+O conjunto original possui aproximadamente:
 
-* Aproximadamente 217.183 imagens benignas;
-* 294 imagens malignas.
+- 217.183 imagens benignas
+- 294 imagens malignas
 
-Devido ao grande desequilíbrio entre as categorias, foi utilizado um dataset reduzido localizado em:
+Para reduzir o desbalanceamento foi criado um subconjunto localizado em:
 
+```text
+data/
+└── ISIC_reduzido/
+    ├── metadata.csv
+    └── images/
 ```
-data/ISIC_reduzido/metadata.csv
-```
 
-Esse conjunto foi utilizado para treinamento e avaliação do modelo.
+Classes:
 
-Classes utilizadas:
-
-* Benigno
-* Maligno
+- Benigno
+- Maligno
 
 ---
 
 # 4. Estrutura do Projeto
 
-```
+```text
 isic_2024/
-
 │
 ├── app.py
-│
 ├── requirements.txt
+├── README.md
 │
-├── src/
-│   │
-│   ├── model.py
-│   └── config.py
-│
-├── data/
-│   │
-│   └── ISIC_reduzido/
-│       │
-│       └── metadata.csv
+├── checkpoints/
+│   └── best_model.pth
 │
 ├── outputs/
-│   │
+│   ├── accuracy.png
+│   ├── confusion_matrix.png
 │   ├── dataset_original.png
 │   ├── dataset_reduzido.png
-│   ├── roc_curve.png
-│   ├── accuracy.png
+│   ├── final_predictions.csv
+│   ├── history.json
 │   ├── loss.png
-│   └── confusion_matrix.png
+│   ├── roc_curve.png
+│   ├── roc_evolution.png
+│   └── gradcam/
 │
-├── outputs/gradcam/
+├── data/
+│   └── ISIC_reduzido/
+│       ├── metadata.csv
+│       └── images/
 │
-└── models/
-    │
-    └── best_model.pth
+└── src/
+    ├── config.py
+    ├── dataset.py
+    ├── evaluate.py
+    ├── find_threshold.py
+    ├── gradcam.py
+    ├── model.py
+    └── train.py
 ```
 
 ---
 
 # 5. Metodologia
 
-O desenvolvimento do sistema foi dividido nas seguintes etapas:
+## Pré-processamento
 
-## 5.1 Preparação do Dataset
+- Resize 224×224
+- Conversão para Tensor
+- Normalização ImageNet
 
-O arquivo:
-
-```
-data/ISIC_reduzido/metadata.csv
-```
-
-foi utilizado para organização das imagens e definição das classes.
-
-As imagens foram separadas em:
-
-* benignas;
-* malignas.
-
----
-
-## 5.2 Pré-processamento das Imagens
-
-Antes da entrada no modelo, as imagens passam pelo seguinte pipeline:
-
-* Redimensionamento para 224x224 pixels;
-* Conversão para Tensor;
-* Normalização utilizando os valores do ImageNet.
-
-Implementado utilizando:
-
-```
-torchvision.transforms
-```
-
----
-
-# 6. Experimentos Realizados
-
-## 6.1 Configuração do Modelo
-
-A arquitetura utilizada foi:
+## Arquitetura
 
 ```
 EfficientNet-B0
+        ↓
+Extração de características
+        ↓
+Dropout (0.4)
+        ↓
+Linear(features,1)
+        ↓
+Sigmoid
 ```
 
-O modelo foi carregado utilizando a biblioteca:
+Implementação em:
 
-```
-timm
-```
-
-com pesos pré-treinados:
-
-```
-pretrained=True
-```
-
-O código principal está localizado em:
-
-```
+```text
 src/model.py
 ```
 
-A arquitetura utilizada:
+---
 
+# 6. Experimentos
+
+Foram realizados:
+
+- Transfer Learning
+- Data Augmentation
+- Ajuste de threshold
+- Avaliação final
+- Grad-CAM
+
+Data augmentation:
+
+- Flip Horizontal
+- Flip Vertical
+- Rotação
+- Ajuste de brilho
+- Contraste
+- CLAHE
+- Transformações geométricas
+
+---
+
+# 7. Treinamento
+
+Arquivo:
+
+```text
+src/train.py
 ```
-EfficientNet-B0
-        |
-Extração de características
-        |
-Dropout(0.4)
-        |
-Linear(features,1)
-        |
-Classificação binária
+
+Durante o treinamento são registrados:
+
+- Loss de treino
+- Loss de validação
+- ROC-AUC de treino
+- ROC-AUC de validação
+
+Os resultados são armazenados em:
+
+```text
+outputs/history.json
+```
+
+O melhor modelo é salvo automaticamente em:
+
+```text
+checkpoints/best_model.pth
 ```
 
 ---
 
-## 6.2 Estratégia de Treinamento
+# 8. Avaliação
 
-O treinamento foi realizado utilizando aprendizado por transferência.
+Arquivo:
 
-A rede inicial utiliza conhecimentos adquiridos no dataset ImageNet e foi adaptada para classificação binária de lesões cutâneas.
-
----
-
-## 6.3 Data Augmentation
-
-Foram utilizadas técnicas de aumento de dados para aumentar a diversidade das imagens durante o treinamento.
-
-Transformações aplicadas:
-
-* Rotação;
-* Flip horizontal;
-* Flip vertical;
-* Ajuste de brilho;
-* Contraste;
-* CLAHE;
-* Transformações geométricas.
-
-A biblioteca utilizada foi:
-
-```
-Albumentations
+```text
+src/evaluate.py
 ```
 
----
+São calculadas:
 
-## 6.4 Tratamento do Desbalanceamento
+- Accuracy
+- Precision
+- Recall
+- F1-score
+- ROC-AUC
+- Matriz de Confusão
 
-Devido à diferença entre a quantidade de imagens benignas e malignas, foram utilizadas estratégias para reduzir o impacto da classe majoritária.
+Também são gerados:
 
-Foram aplicadas:
-
-* redução do conjunto benigno;
-* aumento da diversidade através de Data Augmentation;
-* ponderação da classe minoritária durante treinamento.
-
----
-
-# 7. Avaliação Experimental
-
-O modelo foi avaliado utilizando métricas de classificação:
-
-* Accuracy;
-* Precision;
-* Recall;
-* F1-score;
-* ROC-AUC;
-* Matriz de Confusão.
-
-Resultados obtidos:
-
-| Métrica        | Resultado             |
-| -------------- | --------------------- |
-| ROC-AUC        | aproximadamente 0.903 |
-| Recall maligno | aproximadamente 73%   |
-| Acurácia       | aproximadamente 90%   |
+- accuracy.png
+- loss.png
+- roc_curve.png
+- roc_evolution.png
+- confusion_matrix.png
+- dataset_original.png
+- dataset_reduzido.png
 
 ---
 
-# 8. Aplicação Streamlit
+# 9. Aplicação Web
 
-A aplicação está localizada em:
+Arquivo:
 
-```
+```text
 app.py
 ```
 
-A interface permite:
+Funcionalidades:
 
-## Predição Individual
-
-O usuário pode enviar uma imagem e o sistema retorna:
-
-* classe prevista;
-* confiança da previsão.
-
----
-
-## Testes Automáticos
-
-O usuário pode selecionar:
-
-* 10 imagens aleatórias;
-* 10 imagens benignas;
-* 10 imagens malignas;
-* 5 benignas + 5 malignas.
-
-Para cada imagem são exibidos:
-
-* ID da imagem;
-* classe real;
-* previsão da IA;
-* nível de confiança;
-* indicação de acerto ou erro.
-
----
-
-# 9. Visualização dos Resultados
-
-Os gráficos utilizados pela aplicação estão localizados em:
-
-```
-outputs/
-```
-
-Arquivos:
-
-```
-dataset_original.png
-```
-
-Distribuição das classes no dataset original.
-
-```
-dataset_reduzido.png
-```
-
-Distribuição das classes no dataset reduzido.
-
-```
-roc_curve.png
-```
-
-Curva ROC-AUC do modelo.
-
-```
-accuracy.png
-```
-
-Evolução da acurácia durante treinamento.
-
-```
-loss.png
-```
-
-Evolução da função de perda.
-
-```
-confusion_matrix.png
-```
-
-Matriz de confusão da classificação.
+- Upload de imagem
+- Classificação Benigno/Maligno
+- Confiança da predição
+- Visualização das métricas
+- Visualização dos gráficos
+- Testes automáticos com imagens do dataset
 
 ---
 
 # 10. Grad-CAM
 
-Foi implementada uma etapa de interpretabilidade utilizando Grad-CAM.
+Arquivo:
 
-Os resultados são armazenados em:
-
+```text
+src/gradcam.py
 ```
+
+As imagens geradas são armazenadas em:
+
+```text
 outputs/gradcam/
 ```
-
-Essa técnica permite visualizar quais regiões da imagem tiveram maior influência na decisão da rede neural.
 
 ---
 
@@ -344,6 +246,30 @@ Instalar dependências:
 pip install -r requirements.txt
 ```
 
+Treinar:
+
+```bash
+python -m src.train
+```
+
+Encontrar o melhor threshold:
+
+```bash
+python -m src.find_threshold
+```
+
+Gerar métricas e gráficos:
+
+```bash
+python -m src.evaluate
+```
+
+Gerar Grad-CAM:
+
+```bash
+python -m src.gradcam
+```
+
 Executar a aplicação:
 
 ```bash
@@ -352,42 +278,37 @@ streamlit run app.py
 
 ---
 
-# 12. Modelo Treinado
+# 12. Resultados
 
-O modelo treinado deve estar localizado em:
+Modelo:
 
-```
-models/best_model.pth
-```
+- EfficientNet-B0
 
-O carregamento do modelo é realizado através de:
+Threshold:
 
-```
-src/config.py
-```
+- 0.91
 
-e:
+Métricas apresentadas na aplicação:
 
-```
-src/model.py
-```
+| Métrica | Valor |
+|---------|------:|
+| ROC-AUC | 0.918 |
+| Recall maligno | 76% |
+| Acurácia | 91.8% |
 
 ---
 
 # 13. Autores
 
-Rafael Reis Borges da Silva
-Victor Gabryel da Silva
+- Rafael Reis Borges da Silva
+- Victor Gabryel da Silva
 
 Curso Superior de Tecnologia em Análise e Desenvolvimento de Sistemas
 
-Instituto Federal de Educação, Ciência e Tecnologia de Pernambuco
-IFPE - Campus Jaboatão dos Guararapes
+Instituto Federal de Educação, Ciência e Tecnologia de Pernambuco (IFPE) – Campus Jaboatão dos Guararapes
 
 ---
 
 # 14. Observação
 
-O sistema possui finalidade acadêmica e experimental.
-
-O modelo desenvolvido funciona como ferramenta de apoio baseada em Inteligência Artificial e não substitui avaliação médica especializada.
+Este projeto possui finalidade acadêmica. O sistema serve como ferramenta de apoio à análise de imagens dermatológicas e não substitui o diagnóstico realizado por profissionais da saúde.
